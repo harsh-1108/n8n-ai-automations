@@ -1,0 +1,414 @@
+{
+  "name": "Ai-Ticket Router",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an enterprise data router. Analyze the incoming text from the webhook. Decide if the user is describing a Technical Bug, a Feature Request, or General Feedback. \n\nOutput your answer in exactly one word: either \"BUG\", \"FEATURE\", or \"FEEDBACK\". Do not include any punctuation, quotes, or extra conversational text.\n\nIncoming Text: {{ $json.body }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d4847ff7-6e76-44af-8895-16f249d27f83",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        144,
+        208
+      ],
+      "id": "179b5858-1bce-43b9-9523-fd689aacbbf1",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "63WGr1WiBvprWsgJ",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "290345e3-2ded-463f-ba4f-50b0e0cad51c",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8f0e1edb-0aea-45b7-bd52-910ecc65bb0d",
+      "name": "Webhook",
+      "webhookId": "290345e3-2ded-463f-ba4f-50b0e0cad51c"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "BUG",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "8ce8c56c-a7fa-465e-ab9f-dcc958c7fae7"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Technical Bug"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "735a947c-a799-4444-a5fe-60477a51ea54",
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "FEATURE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Feature Request"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c835d464-ab2f-4b98-8f0e-123bf40c0f4c",
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "FEEDBACK",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "General Feedback"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        0
+      ],
+      "id": "bd1ffe0d-d811-4d87-a596-8a51a0024f16",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This script extracts the clean message, adds metadata, and prepares an enterprise-ready ticket\nconst inputData = $json.body ? $json.body : \"No message body provided\";\n\nreturn {\n  ticket_id: \"BUG-\" + Math.floor(1000 + Math.random() * 9000),\n  status: \"OPEN\",\n  priority: \"HIGH\",\n  created_at: new Date().toISOString(),\n  raw_issue: inputData.trim(),\n  cleaned_summary: inputData.toLowerCase().replace(/please look into this immediately\\.?/g, '').trim()\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        -256
+      ],
+      "id": "79985b5c-590f-4287-a6e1-19261494647d",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "sendTo": "harshgupta3719@gmail.com",
+        "subject": "[ALERT] New High Priority Ticket Created",
+        "message": "=<h3>Enterprise Bug Alert</h3>\n<p><b>Ticket ID:</b> {{ $json.ticket_id }}</p>\n<p><b>Priority:</b> <span style=\"color: red;\">{{ $json.priority }}</span></p>\n<p><b>Summary:</b> {{ $json.cleaned_summary }}</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1152,
+        -256
+      ],
+      "id": "6429715c-f704-4b86-89c1-fb7ea7340d51",
+      "name": "Send a message",
+      "webhookId": "7aaefc48-ac89-4b36-81f4-971b6e342cba",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "MSFVIo7PDZwCJxfv",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c74154c1-c3f3-407f-8b96-fea993109d58",
+              "name": "type",
+              "value": "FEATURE_REQUEST",
+              "type": "string"
+            },
+            {
+              "id": "88497b9e-d632-4698-b1f2-851a163ded14",
+              "name": "=idea",
+              "value": "={{ $json.body }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        848,
+        0
+      ],
+      "id": "36f88284-f471-489d-9caf-34694446ce84",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1xhPc7uANWM0Qmv2tqK_BtPEZ0okRKSun5KcR6cFbz_U/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1xhPc7uANWM0Qmv2tqK_BtPEZ0okRKSun5KcR6cFbz_U/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "type": "={{ $json.type }}",
+            "idea": "={{ $json.idea }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "type",
+              "displayName": "type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "idea",
+              "displayName": "idea",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1152,
+        0
+      ],
+      "id": "455911d7-72e4-4efb-bfa6-df56dc94bd29",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "X6MmOVTVtMBDT7P7",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BCG3FHQ1L",
+          "mode": "id"
+        },
+        "text": "=📢 New User Feedback Received: {{ $json.text }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        864,
+        224
+      ],
+      "id": "185ab9cb-7b8f-4a90-b470-1f59314464c6",
+      "name": "Send a message1",
+      "webhookId": "57374675-9b9d-4634-b4f4-e904689a2920",
+      "credentials": {
+        "slackApi": {
+          "id": "btcB2ddaHnF0Gj8b",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Windows powershell prompt \nInvoke-RestMethod -Uri \"http://localhost:5678/webhook-test/290345e3-2ded-463f-ba4f-50b0e0cad51c\" -Method Post -ContentType \"application/json\" -Body '{\"body\": \"The interface looks incredible, brilliant work by the development team!\"}'",
+        "height": 384
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -272,
+        -16
+      ],
+      "typeVersion": 1,
+      "id": "14130571-253d-4dc7-92d6-ff29d4105d5f",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "2f7d238a-d7ac-40e6-a1b6-81afc1136723",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2708ea8db130ea2b7e8566fae54be12e59e97fec1c8ad5d4d466ac5aa01b079d"
+  },
+  "nodeGroups": [],
+  "id": "nx4HcJgL67nE5XUc",
+  "tags": []
+}
